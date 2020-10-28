@@ -1,0 +1,11 @@
+./set-region eu-central-1
+
+./deploy.sh Vaidas 3 t3.medium 100 vaidas-eu-central-1
+
+./list-stacks.sh
+
+./stack-status.sh Vaidas
+
+./list-public-dns.sh Vaidas
+
+./delete-stack Vaidas

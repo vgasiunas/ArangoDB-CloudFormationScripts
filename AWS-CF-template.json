@@ -1,0 +1,140 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS Deployment for ArangoDB Enterprise",
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+        "Image": {
+            "Description": "EC2 image AMI",
+            "Type": "String"
+        },
+        "InstanceType" : {
+      		"Description" : "EC2 instance type",
+      		"Type" : "String",
+      		"Default" : "t3.medium",
+      		"ConstraintDescription" : "must be a valid EC2 instance type."
+      	},
+      	"VolumeSize": {
+            "Description": "EBS volume size",
+            "Type": "Number"
+        },
+      	"NumberOfInstances": {
+            "Description": "Number of instances",
+            "Type": "Number"
+        }
+    },
+    "Resources": {
+        "ArangoDBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable SSH and ArangoDB Ports",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": 22,
+                        "IpProtocol": "tcp",
+                        "ToPort": 22
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": 8528,
+                        "IpProtocol": "tcp",
+                        "ToPort": 8528
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": 8529,
+                        "IpProtocol": "tcp",
+                        "ToPort": 8529
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": 8530,
+                        "IpProtocol": "tcp",
+                        "ToPort": 8530
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": 8531,
+                        "IpProtocol": "tcp",
+                        "ToPort": 8531
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "serverAutoScalingGroup": {
+            "Properties": {
+                "AvailabilityZones": {
+                    "Fn::GetAZs": ""
+                },
+                "DesiredCapacity": {
+                    "Ref": "NumberOfInstances"
+                },
+                "LaunchConfigurationName": {
+                    "Ref": "serverLaunchConfiguration"
+                },
+                "MaxSize": 100,
+                "MinSize": 0,
+                "Tags": [
+                	{
+                    	"Key": "Name",
+                    	"Value": { "Ref" : "AWS::StackName" },
+                    	"PropagateAtLaunch": true
+                	}
+                ]
+            },
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        },
+        "serverLaunchConfiguration": {
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/xvda",
+                        "Ebs": {
+                            "DeleteOnTermination": true
+                        }
+                    },
+                    {
+                        "DeviceName": "/dev/sdk",
+                        "Ebs": {
+                            "Encrypted": true,
+                            "VolumeSize": {
+                    			"Ref": "VolumeSize"
+                			},
+                            "VolumeType": "gp2"
+                        }
+                    }
+                ],
+                "EbsOptimized": true,
+                "ImageId" : { 
+                   "Ref": "Image"
+                },
+                "InstanceType" : { 
+                    "Ref" : "InstanceType" 
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "ArangoDBSecurityGroup"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\n",
+                                "echo 'Running startup script...'\n"
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        }
+    }
+}
